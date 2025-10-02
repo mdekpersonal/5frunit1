@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header text-center mb-4">
+    <div class="emoji" style="font-size: 3rem;">⚡</div>
+    <h1 style="color: black; font-weight: bold;">Quick Response</h1>
+    <h2 style="color: black; font-weight: bold;">{{ unit_data.unit_name }} - Lightning Fast Answers!</h2>
+    <div class="emoji" style="font-size: 2rem;">🚀✨</div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <a href="/" class="btn btn-outline-primary btn-lg">🏠 Back to Home</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <!-- Section Audio Player -->
+        <audio id="quick-response-audio" controls controlsList="nodownload" style="width: 300px;">
+            <source src="static/media/{{ data.section_audio }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+        <div class="mt-2">
+            <small class="text-muted" style="color: black; font-weight: bold;">🔊 Listen to the whole section audio</small>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-4">
+            <h3 style="color: black; font-weight: bold;">⚡ Quick Response Challenge! ⚡</h3>
+            <p style="font-size: 1.1rem; color: black; font-weight: bold;">Answer quickly and accurately!</p>
+        </div>
+    </div>
+</div>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div id="carousel-container" style="min-height: 500px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <p style="color: black; font-weight: bold;">Press Start to begin 40-second Quick Response carousel...</p>
+        </div>
+        <div class="d-flex justify-content-center mt-4">
+            <button id="start-btn" class="btn btn-success btn-lg mx-2">▶️ Start</button>
+            <button id="pause-btn" class="btn btn-warning btn-lg mx-2" disabled>⏸️ Pause</button>
+            <button id="stop-btn" class="btn btn-danger btn-lg mx-2" disabled>⏹️ Stop</button>
+        </div>
+        <div class="text-center mt-3">
+            <audio id="carousel-audio" controls style="width: 80%; max-width: 400px; display:none;" controlsList="nodownload"></audio>
+        </div>
+    </div>
+</div>
+<div class="row mt-5">
+    <div class="col-12 text-center">
+        <div style="background: linear-gradient(45deg, #a29bfe, #6c5ce7); padding: 25px; border-radius: 20px; color: white;">
+            <h4>⚡ Lightning Fast Learning! ⚡</h4>
+            <p style="margin: 0;">You're getting super quick at English responses! Keep up the amazing work!</p>
+            <div style="margin: 15px 0; font-size: 2rem;">🏆 ⚡ 🎯 ⚡ 🏆</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Debug: Show raw data -->
+<div style="display:none;" id="debug-data">{{ data['items'] | tojson | safe }}</div>
+
+<script type="application/json" id="quick-response-data">
+{{ data['items'] | tojson | safe }}
+</script>
+<script>
+let items = [];
+try {
+    const dataElement = document.getElementById('quick-response-data');
+    if (dataElement && dataElement.textContent) {
+        items = JSON.parse(dataElement.textContent);
+        console.log('Successfully loaded items:', items);
+    } else {
+        console.error('No data element or content found');
+    }
+} catch (e) {
+    console.error('Error parsing JSON data:', e);
+}
+let currentIndex = 0;
+let autoAdvance = false;
+let audioEl = null;
+let carouselAudio = document.getElementById('carousel-audio');
+let audioDuration = 40; // 40 seconds total
+let cardInterval = 8000; // 8 seconds per card (40 seconds / 5 cards)
+
+// Set fixed timing for 40-second carousel
+function setupAudioTiming() {
+    if (carouselAudio) {
+        carouselAudio.src = '/static/media/{{ data.section_audio }}';
+        carouselAudio.load();
+    }
+    // Fixed timing: 40 seconds total, 8 seconds per card
+    audioDuration = 40;
+    cardInterval = 8000; // 8 seconds per card
+    console.log('Carousel timing set: 40 seconds total, 8 seconds per card');
+}
+setupAudioTiming();
+
+function renderCarouselItem(index) {
+    console.log('renderCarouselItem called with index:', index);
+    const item = items[index];
+    const container = document.getElementById('carousel-container');
+    
+    if (!container) {
+        console.error('Carousel container not found!');
+        return;
+    }
+    
+    if (!item) {
+        console.error('Item not found for index:', index);
+        container.innerHTML = '<div class="alert alert-warning">No item found for index ' + index + '</div>';
+        return;
+    }
+    
+    console.log('Rendering item:', item);
+    container.innerHTML = `
+        <div class="item-card text-center" style="animation: fadeIn 0.5s; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-left: 5px solid #00b894; min-height: 400px;">
+            <span class="emoji" style="font-size: 4rem;">${item.visual_cue}</span>
+            <h4 style="margin: 15px 0; color: black; font-weight: bold;">Focus: ${item.focus}</h4>
+            <div class="question-section" style="background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; padding: 25px; border-radius: 15px; margin: 20px 0; min-height: 80px; display: flex; flex-direction: column; justify-content: center;">
+                <h5 style="font-weight: bold; margin-bottom: 15px;">🤔 Question:</h5>
+                <div style="font-size: 1.4rem; line-height: 1.6; font-weight: bold; word-wrap: break-word; white-space: normal; text-align: center;">
+                    "${item.app_prompt}"
+                </div>
+            </div>
+            <div class="answer-section" style="background: linear-gradient(135deg, #00b894, #00a085); color: white; padding: 25px; border-radius: 15px; margin: 20px 0; min-height: 80px; display: flex; flex-direction: column; justify-content: center;">
+                <h5 style="font-weight: bold; margin-bottom: 15px;">✅ Correct Answer:</h5>
+                <div style="font-size: 1.4rem; line-height: 1.6; font-weight: bold; word-wrap: break-word; white-space: normal; text-align: center;">
+                    "${item.expected_response}"
+                </div>
+            </div>
+            <div class="mt-3">
+                <span style="font-size:1.2rem; color: black; font-weight: bold;">${index + 1} / ${items.length}</span>
+            </div>
+        </div>
+    `;
+}
+
+function startCarousel() {
+    autoAdvance = true;
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('pause-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = false;
+    currentIndex = 0;
+    renderCarouselItem(currentIndex);
+    
+    // Start both carousel audio and main section audio
+    carouselAudio.currentTime = 0;
+    carouselAudio.play();
+    carouselAudio.style.display = 'inline-block';
+    
+    // Also start the main section audio
+    const mainAudio = document.getElementById('quick-response-audio');
+    if (mainAudio) {
+        mainAudio.currentTime = 0;
+        mainAudio.play().catch(e => console.log('Audio autoplay blocked:', e));
+    }
+    
+    playAndAdvance();
+}
+function pauseCarousel() {
+    autoAdvance = false;
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('pause-btn').disabled = true;
+    document.getElementById('stop-btn').disabled = false;
+    carouselAudio.pause();
+    
+    // Also pause main audio
+    const mainAudio = document.getElementById('quick-response-audio');
+    if (mainAudio) {
+        mainAudio.pause();
+    }
+}
+function stopCarousel() {
+    autoAdvance = false;
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('pause-btn').disabled = true;
+    document.getElementById('stop-btn').disabled = true;
+    currentIndex = 0;
+    renderCarouselItem(currentIndex);
+    carouselAudio.pause();
+    carouselAudio.currentTime = 0;
+    carouselAudio.style.display = 'none';
+    
+    // Also stop main audio
+    const mainAudio = document.getElementById('quick-response-audio');
+    if (mainAudio) {
+        mainAudio.pause();
+        mainAudio.currentTime = 0;
+    }
+}
+function playAndAdvance() {
+    if (!autoAdvance) return;
+    // Advance cards in sync with audio file
+    let advance = () => {
+        if (!autoAdvance) return;
+        if (currentIndex < items.length - 1) {
+            currentIndex++;
+            renderCarouselItem(currentIndex);
+            setTimeout(advance, cardInterval);
+        } else {
+            stopCarousel();
+        }
+    };
+    setTimeout(advance, cardInterval);
+    // Stop carousel when audio ends
+    carouselAudio.onended = stopCarousel;
+}
+// Initialize immediately and also on DOM ready
+function initializeCarousel() {
+    console.log('Initializing carousel...');
+    console.log('Items:', items);
+    console.log('Current index:', currentIndex);
+    
+    // Set up event listeners if elements exist
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    
+    if (startBtn) startBtn.onclick = startCarousel;
+    if (pauseBtn) pauseBtn.onclick = pauseCarousel;
+    if (stopBtn) stopBtn.onclick = stopCarousel;
+    
+    // Render initial card
+    if (items && items.length > 0) {
+        renderCarouselItem(currentIndex);
+        console.log('Initial card rendered');
+    } else {
+        console.error('No items found!');
+        const container = document.getElementById('carousel-container');
+        if (container) {
+            container.innerHTML = '<div class="alert alert-warning">No quick response items found</div>';
+        }
+    }
+}
+
+// Try to initialize immediately
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeCarousel);
+} else {
+    // Document already loaded
+    initializeCarousel();
+}
+
+// Scrolling text animation
+const style = document.createElement('style');
+style.innerHTML = `
+@keyframes scrollText {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

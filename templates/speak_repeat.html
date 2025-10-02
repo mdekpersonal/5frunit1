@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header">
+    <div class="emoji">🗣️</div>
+    <h1>Speak and Repeat</h1>
+    <h2>{{ unit_data.unit_name }} - Practice Time!</h2>
+    <div class="emoji">🎯✨</div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="/" class="btn btn-outline-primary btn-lg">🏠 Back to Home</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <!-- Section audio placeholder -->
+        <audio id="carousel-audio" controls controlsList="nodownload" style="width: 300px;">
+            <source src="static/media/{{ data.section_audio }}" type="audio/wav">
+            Your browser does not support the audio element.
+        </audio>
+        <div class="mt-2">
+            <small class="text-muted">🔊 Listen to the whole section audio</small>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-4">
+            <h3 style="color: #2d3436;">🎪 Listen and Repeat These Fun Phrases! 🎪</h3>
+            <p style="font-size: 1.1rem; color: #636e72;">Use the carousel below to practice each phrase!</p>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div id="speak-carousel" class="carousel-container" style="position: relative; min-height: 250px;"></div>
+        <noscript>
+            <ul>
+            {% for item in data['items'] %}
+                <li>
+                    <span>{{ item.visual_cue }}</span>
+                    <strong>{{ item.topic }}</strong>: {{ item.prompt_text }}
+                </li>
+            {% endfor %}
+            </ul>
+        </noscript>
+        <div class="text-center mt-4">
+            <button class="btn btn-success btn-lg mx-2" id="carousel-start-bottom">▶️ Start</button>
+            <button class="btn btn-warning btn-lg mx-2" id="carousel-pause">⏸️ Pause</button>
+            <button class="btn btn-danger btn-lg mx-2" id="carousel-stop">⏹️ Stop</button>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="text-center">
+            <div style="background: linear-gradient(45deg, #ffeaa7, #fdcb6e); padding: 25px; border-radius: 20px;">
+                <h4 style="color: #2d3436;">🏆 Great Job Practicing! 🏆</h4>
+                <p style="margin: 0; color: #636e72;">Keep practicing these phrases every day to become a super English speaker!</p>
+                <div style="margin: 15px 0; font-size: 2rem;">🌟 ⭐ 🎉 ⭐ 🌟</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="carousel-data">{{ data['items'] | tojson | safe }}</script>
+<script>
+    // Data from Flask - loaded from JSON script
+    const carouselData = JSON.parse(document.getElementById('carousel-data').textContent);
+    console.log('Loaded carousel data:', carouselData);
+    
+    let items = carouselData || [];
+    let currentIndex = 0;
+    let carouselInterval = null;
+    let isPaused = false;
+    let audio = document.getElementById('carousel-audio');
+    let audioPlaying = false;
+    let carouselCompleted = false;
+    
+    // Calculate timing for 30-second total carousel duration
+    const totalCarouselDuration = 30000; // 30 seconds in milliseconds
+    const carouselSpeed = items.length > 0 ? totalCarouselDuration / items.length : 5000;
+    
+    console.log(`Carousel setup: ${items.length} items, ${carouselSpeed}ms per item, ${totalCarouselDuration}ms total`);
+
+    function renderCarouselItem(index) {
+        const container = document.getElementById('speak-carousel');
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="alert alert-warning text-center">No items to display.</div>';
+            return;
+        }
+        
+        if (index >= items.length || index < 0) {
+            container.innerHTML = '<div class="alert alert-danger text-center">Invalid item index: ' + index + '</div>';
+            return;
+        }
+        
+        const item = items[index];
+        const timePerItem = Math.round(carouselSpeed / 1000);
+        const isLastItem = index === items.length - 1;
+        const statusText = isLastItem ? "Last item - Press Start to restart" : `${timePerItem}s each`;
+        
+        container.innerHTML = `
+            <div class="item-card" style="text-align: center; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-left: 5px solid #ff6b6b;">
+                <div style="font-size: 4rem; margin-bottom: 20px;">${item.visual_cue}</div>
+                <h4 style="color: #2d3436; margin-bottom: 15px;">${item.topic}</h4>
+                <p style="font-size: 1.8rem; font-weight: bold; color: #636e72; margin: 20px 0;"><strong>"${item.prompt_text}"</strong></p>
+                <small class="text-muted">Item ${index + 1} of ${items.length} • ${statusText}</small>
+            </div>
+        `;
+    }
+
+    function startCarouselAndAudio() {
+        startCarousel();
+        if (audio && audio.paused) {
+            audio.play();
+        }
+    }
+
+    function startCarousel() {
+        // If carousel is already running, don't start again
+        if (carouselInterval) return;
+        
+        // If carousel has completed, restart from beginning
+        if (carouselCompleted) {
+            currentIndex = 0;
+            carouselCompleted = false;
+            console.log('Restarting carousel from beginning');
+        }
+        
+        isPaused = false;
+        renderCarouselItem(currentIndex);
+        
+        // Start the carousel interval
+        carouselInterval = setInterval(() => {
+            if (!isPaused) {
+                if (currentIndex < items.length - 1) {
+                    currentIndex++;
+                    renderCarouselItem(currentIndex);
+                } else {
+                    // Reached the last card, stop the carousel but keep displaying it
+                    clearInterval(carouselInterval);
+                    carouselInterval = null;
+                    carouselCompleted = true;
+                    renderCarouselItem(currentIndex);
+                    console.log('Carousel reached last item and stopped');
+                    
+                    // Pause audio when carousel finishes
+                    if (audio && !audio.paused) {
+                        audio.pause();
+                    }
+                }
+            }
+        }, carouselSpeed);
+        
+        if (audio && audio.paused) {
+            audio.play();
+        }
+    }
+
+    if (audio) {
+        audio.addEventListener('play', function() {
+            audioPlaying = true;
+        });
+        audio.addEventListener('pause', function() {
+            audioPlaying = false;
+        });
+        audio.addEventListener('ended', function() {
+            audioPlaying = false;
+            stopCarousel();
+        });
+    }
+
+    function pauseCarousel() {
+        isPaused = true;
+        if (audio) audio.pause();
+    }
+
+    function stopCarousel() {
+        if (carouselInterval) {
+            clearInterval(carouselInterval);
+            carouselInterval = null;
+        }
+        currentIndex = 0;
+        renderCarouselItem(currentIndex);
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, setting up event listeners');
+        
+        const startBtn = document.getElementById('carousel-start-bottom');
+        const pauseBtn = document.getElementById('carousel-pause');
+        const stopBtn = document.getElementById('carousel-stop');
+        
+        if (startBtn) startBtn.addEventListener('click', startCarouselAndAudio);
+        if (pauseBtn) pauseBtn.addEventListener('click', pauseCarousel);
+        if (stopBtn) stopBtn.addEventListener('click', stopCarousel);
+        
+        // Initial render
+        console.log('Rendering initial item, items length:', items.length);
+        renderCarouselItem(currentIndex);
+    });
+</script>
+{% endblock %}
